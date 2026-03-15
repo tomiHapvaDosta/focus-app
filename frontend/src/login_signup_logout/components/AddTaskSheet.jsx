@@ -42,7 +42,6 @@ export default function AddTaskSheet({ open, onClose, onAdded }) {
     const [saving, setSaving] = useState(false)
     const titleRef = useRef(null)
 
-    // autofocus title when sheet opens
     useEffect(() => {
         if (open) {
             setForm(EMPTY)
@@ -58,7 +57,12 @@ export default function AddTaskSheet({ open, onClose, onAdded }) {
     function toggleDay(d) {
         setForm(prev => {
             const has = prev.recurrence.includes(d)
-            return { ...prev, recurrence: has ? prev.recurrence.filter(x => x !== d) : [...prev.recurrence, d] }
+            return {
+                ...prev,
+                recurrence: has
+                    ? prev.recurrence.filter(x => x !== d)
+                    : [...prev.recurrence, d],
+            }
         })
     }
 
@@ -96,7 +100,6 @@ export default function AddTaskSheet({ open, onClose, onAdded }) {
             onClose()
         } catch (err) {
             if (err.status === 401) { handleUnauthorized(); return }
-            // 409 = conflict, 400 = validation — both come as plain text from backend
             setError(err.message || 'Failed to create task')
         } finally {
             setSaving(false)
@@ -144,6 +147,7 @@ export default function AddTaskSheet({ open, onClose, onAdded }) {
                         {form.area === '__custom' && (
                             <input
                                 className="field-input"
+                                style={{ marginTop: '8px' }}
                                 placeholder="Custom area…"
                                 value={form.customArea}
                                 onChange={e => set('customArea', e.target.value)}
@@ -194,7 +198,9 @@ export default function AddTaskSheet({ open, onClose, onAdded }) {
                                     onClick={() => set('priority', p)}
                                 >
                                     <span className="priority-num">{p}</span>
-                                    <span className="priority-hint">{p === 1 ? 'urgent' : p === 2 ? 'high' : p === 3 ? 'medium' : p === 4 ? 'low' : 'someday'}</span>
+                                    <span className="priority-hint">
+                                        {p === 1 ? 'urgent' : p === 2 ? 'high' : p === 3 ? 'medium' : p === 4 ? 'low' : 'someday'}
+                                    </span>
                                 </button>
                             ))}
                         </div>
@@ -215,7 +221,7 @@ export default function AddTaskSheet({ open, onClose, onAdded }) {
                         </div>
                     </div>
 
-                    {/* Subtype — shown after type is picked */}
+                    {/* Subtype */}
                     {form.type && (
                         <div className="field">
                             <div className="field-label">Schedule</div>
@@ -232,7 +238,7 @@ export default function AddTaskSheet({ open, onClose, onAdded }) {
                         </div>
                     )}
 
-                    {/* Recurrence days — shown for recurring */}
+                    {/* Recurrence days */}
                     {form.type === 'recurring' && (
                         <div className="field">
                             <div className="field-label">Repeats on</div>
@@ -248,7 +254,7 @@ export default function AddTaskSheet({ open, onClose, onAdded }) {
                         </div>
                     )}
 
-                    {/* Start time — shown for time-bound */}
+                    {/* Start time */}
                     {form.subtype === 'time-bound' && (
                         <div className="field">
                             <div className="field-label">Start time</div>
@@ -263,7 +269,9 @@ export default function AddTaskSheet({ open, onClose, onAdded }) {
 
                     {/* Notes */}
                     <div className="field">
-                        <div className="field-label">Notes <span className="field-optional">(optional)</span></div>
+                        <div className="field-label">
+                            Notes <span className="field-optional">(optional)</span>
+                        </div>
                         <textarea
                             className="field-textarea"
                             placeholder="Any context…"

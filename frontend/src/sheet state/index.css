@@ -344,6 +344,13 @@ textarea {
     padding: 12px 4px 8px;
 }
 
+.section-hint {
+    font-size: 11px;
+    color: var(--text-3);
+    padding: 0 4px 8px;
+    letter-spacing: 0.02em;
+}
+
 /* hero card */
 .hero-card {
     background: var(--bg-3);
@@ -474,7 +481,7 @@ textarea {
 .task-completing {
     opacity: 0;
     transform: scale(0.96) !important;
-    transition: opacity 0.2s, transform 0.2s !important
+    transition: opacity 0.2s, transform 0.2s !important;
 }
 
 .task-card-row {
@@ -525,12 +532,30 @@ textarea {
     font-size: 11px
 }
 
+.task-card-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
 .task-priority-badge {
     font-family: var(--mono);
     font-size: 11px;
     font-weight: 500;
-    flex-shrink: 0;
-    margin-top: 2px;
+}
+
+.task-complete-hint {
+    font-size: 10px;
+    color: var(--text-3);
+    letter-spacing: 0.04em;
+    opacity: 0;
+    transition: opacity 0.15s;
+}
+
+.task-card:hover .task-complete-hint {
+    opacity: 1
 }
 
 .task-conflict-banner {

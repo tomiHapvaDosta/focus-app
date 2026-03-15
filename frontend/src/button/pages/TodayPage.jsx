@@ -3,7 +3,6 @@ import { useAuth } from '../context/AuthContext'
 import * as api from '../api/client'
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-const PRIORITY_LABEL = { 1: 'urgent', 2: 'high', 3: 'medium', 4: 'low', 5: 'someday' }
 const PRIORITY_COLOR = { 1: '#ff5f5f', 2: '#f0a050', 3: '#6b7cff', 4: '#4caf7d', 5: '#55555f' }
 
 function fmtDuration(min) {
@@ -27,43 +26,85 @@ function toMinutes(hhmm) {
     return h * 60 + m
 }
 
-// ── Swipeable task card ───────────────────────────────────────────────────────
+const isTouchDevice = () =>
+    typeof window !== 'undefined' &&
+    ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+
+// ── Swipeable / draggable task card ──────────────────────────────────────────
 function TaskCard({ task, onComplete, isConflict, expanded, onToggleExpand }) {
     const startX = useRef(null)
-    const [swipeDx, setSwipeDx] = useState(0)
+    const dragging = useRef(false)
+    const [dx, setDx] = useState(0)
     const [completing, setCompleting] = useState(false)
 
+    const THRESHOLD = 72
+
+    // ── touch ──────────────────────────────────────────────────────────────
     function onTouchStart(e) { startX.current = e.touches[0].clientX }
     function onTouchMove(e) {
         if (startX.current === null) return
-        const dx = e.touches[0].clientX - startX.current
-        if (dx > 0) setSwipeDx(Math.min(dx, 110))
+        const d = e.touches[0].clientX - startX.current
+        if (d > 0) setDx(Math.min(d, 120))
     }
     async function onTouchEnd() {
-        if (swipeDx > 70) {
-            setCompleting(true)
-            await onComplete(task.id)
+        if (dx > THRESHOLD) { setCompleting(true); await onComplete(task.id) }
+        setDx(0); startX.current = null
+    }
+
+    // ── mouse ──────────────────────────────────────────────────────────────
+    function onMouseDown(e) {
+        startX.current = e.clientX
+        dragging.current = false
+
+        function onMouseMove(ev) {
+            const d = ev.clientX - startX.current
+            if (d > 5) dragging.current = true
+            if (d > 0) setDx(Math.min(d, 120))
         }
-        setSwipeDx(0)
-        startX.current = null
+        async function onMouseUp() {
+            window.removeEventListener('mousemove', onMouseMove)
+            window.removeEventListener('mouseup', onMouseUp)
+            if (dx > THRESHOLD) { setCompleting(true); await onComplete(task.id) }
+            setDx(0); startX.current = null
+        }
+        window.addEventListener('mousemove', onMouseMove)
+        window.addEventListener('mouseup', onMouseUp)
+    }
+
+    function handleClick() {
+        // don't expand if the user just dragged
+        if (dragging.current) { dragging.current = false; return }
+        onToggleExpand(task.id)
     }
 
     const priorityColor = PRIORITY_COLOR[task.priority] || '#55555f'
+    const swipeProgress = Math.min(dx / THRESHOLD, 1)
 
     return (
         <div className="task-swipe-container">
             <div className="swipe-bg">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: Math.min(swipeDx / 70, 1) }}>
+                <svg
+                    width="18" height="18" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                    style={{ opacity: swipeProgress }}
+                >
                     <polyline points="20 6 9 17 4 12" />
                 </svg>
             </div>
+
             <div
                 className={`task-card${isConflict ? ' task-card-conflict' : ''}${completing ? ' task-completing' : ''}`}
-                style={{ transform: `translateX(${swipeDx}px)`, transition: swipeDx === 0 ? 'transform 0.22s ease' : 'none' }}
+                style={{
+                    transform: `translateX(${dx}px)`,
+                    transition: dx === 0 ? 'transform 0.22s ease' : 'none',
+                    cursor: isTouchDevice() ? 'default' : 'grab',
+                    userSelect: 'none',
+                }}
                 onTouchStart={onTouchStart}
                 onTouchMove={onTouchMove}
                 onTouchEnd={onTouchEnd}
-                onClick={() => onToggleExpand(task.id)}
+                onMouseDown={onMouseDown}
+                onClick={handleClick}
             >
                 <div className="task-card-row">
                     <span className="task-priority-dot" style={{ background: priorityColor }} />
@@ -75,9 +116,12 @@ function TaskCard({ task, onComplete, isConflict, expanded, onToggleExpand }) {
                             {task.start_time && <span className="task-time">{fmtTime(task.start_time)}</span>}
                         </div>
                     </div>
-                    <span className="task-priority-badge" style={{ color: priorityColor }}>
-                        P{task.priority}
-                    </span>
+                    <div className="task-card-right">
+                        <span className="task-priority-badge" style={{ color: priorityColor }}>P{task.priority}</span>
+                        {!isTouchDevice() && (
+                            <span className="task-complete-hint" title="Drag right to complete">→ complete</span>
+                        )}
+                    </div>
                 </div>
 
                 {isConflict && (
@@ -92,7 +136,10 @@ function TaskCard({ task, onComplete, isConflict, expanded, onToggleExpand }) {
 
                 {expanded && (
                     <div className="task-notes">
-                        {task.notes || <span className="task-notes-empty">No notes</span>}
+                        {task.notes
+                            ? task.notes
+                            : <span className="task-notes-empty">No notes</span>
+                        }
                     </div>
                 )}
             </div>
@@ -152,6 +199,7 @@ export default function TodayPage() {
 
     const today = new Date()
     const dateLabel = `${DAY_NAMES[today.getDay()]}, ${today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+    const touch = isTouchDevice()
 
     const load = useCallback(async () => {
         try {
@@ -187,11 +235,13 @@ export default function TodayPage() {
         setExpandedId(prev => prev === id ? null : id)
     }
 
-    const timeBound = tasks.filter(t => t.subtype === 'time-bound')
-    const flexible = tasks.filter(t => t.subtype === 'flexible')
+    // hero = first task; exclude it from the sections below to avoid duplicate
     const hero = tasks[0] ?? null
+    const heroId = hero?.id ?? null
+    const rest = tasks.filter(t => t.id !== heroId)
+    const timeBound = rest.filter(t => t.subtype === 'time-bound')
+    const flexible = rest.filter(t => t.subtype === 'flexible')
 
-    // interleave gaps between time-bound tasks
     function buildTimeline() {
         const sorted = [...timeBound].sort((a, b) => toMinutes(a.start_time) - toMinutes(b.start_time))
         const items = []
@@ -225,7 +275,9 @@ export default function TodayPage() {
                 <div className="today-empty">
                     <div className="today-empty-glyph">✦</div>
                     <div className="today-empty-title">All clear</div>
-                    <div className="today-empty-sub">Tap + to add a task</div>
+                    <div className="today-empty-sub">
+                        {touch ? 'Tap + to add a task' : 'Click + to add a task'}
+                    </div>
                 </div>
             )}
 
@@ -238,6 +290,9 @@ export default function TodayPage() {
             {timeBound.length > 0 && (
                 <section className="today-section">
                     <div className="section-label">Scheduled</div>
+                    {!touch && (
+                        <div className="section-hint">Drag a card right to complete it</div>
+                    )}
                     <div className="task-list">
                         {buildTimeline().map((item, i) =>
                             item.kind === 'gap'
@@ -258,6 +313,9 @@ export default function TodayPage() {
             {flexible.length > 0 && (
                 <section className="today-section">
                     <div className="section-label">Flexible</div>
+                    {!touch && flexible.length > 0 && timeBound.length === 0 && (
+                        <div className="section-hint">Drag a card right to complete it</div>
+                    )}
                     <div className="task-list">
                         {flexible.map(task => (
                             <TaskCard
