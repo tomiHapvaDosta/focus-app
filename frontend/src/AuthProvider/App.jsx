@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './context/AuthContext'
 import RequireAuth from './components/RequireAuth'
 import TabBar from './components/TabBar'
+import AddTaskSheet from './components/AddTaskSheet'
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
 import TodayPage from './pages/TodayPage'
@@ -12,13 +13,17 @@ import PatternsPage from './pages/PatternsPage'
 
 function AppShell() {
   const [addOpen, setAddOpen] = useState(false)
-  const { logout } = useAuth()
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  function handleAdded() {
+    setRefreshKey(k => k + 1)
+  }
 
   return (
     <div className="app-shell">
       <main className="app-main">
         <Routes>
-          <Route path="/today" element={<TodayPage />} />
+          <Route path="/today" element={<TodayPage key={refreshKey} />} />
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/routine" element={<RoutinePage />} />
           <Route path="/patterns" element={<PatternsPage />} />
@@ -28,17 +33,11 @@ function AppShell() {
 
       <TabBar onAddClick={() => setAddOpen(true)} />
 
-      {/* Add task sheet placeholder — replaced in Prompt 2 */}
-      {addOpen && (
-        <div className="sheet-overlay" onClick={() => setAddOpen(false)}>
-          <div className="sheet" onClick={e => e.stopPropagation()}>
-            <div className="sheet-handle" />
-            <p style={{ padding: '2rem', color: 'var(--text-2)', textAlign: 'center' }}>
-              Add task sheet — coming in Prompt 2
-            </p>
-          </div>
-        </div>
-      )}
+      <AddTaskSheet
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onAdded={handleAdded}
+      />
     </div>
   )
 }
